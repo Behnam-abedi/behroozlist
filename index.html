@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Profit/Loss Table</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #4CAF50;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+      font-weight: bold;
+      padding: 12px;
+      text-align: center;
+    }
+    td {
+      padding: 10px;
+      text-align: center;
+      color: #555;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .summary {
+      margin-top: 20px;
+      padding: 50px;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .profit {
+      background-color: #e7f7e7;
+      color: #2e7d32;
+      border: 1px solid #2e7d32;
+      padding: 20px;
+    }
+    .loss {
+      background-color: #fbe9e7;
+      color: #c62828;
+      border: 1px solid #c62828;
+      padding: 20px;
+    }
+    .loader {
+      text-align: center;
+      font-size: 18px;
+      color: #555;
+      font-weight: bold;
+      margin-top: 20px;
+      z-index: 1000;
+      width: 100%;
+      height: 100%;
+      background-color: #333;
+      position:fixed;
+      top:-20px;
+      left: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+    }
+  </style>
+</head>
+<body id="body">
+  <h1>Crypto Profit/Loss Table</h1>
+  <div id="summary" class="summary"></div>
+  <div id="loading" class="loader">
+    <span> Loading data...</span>
+   </div> <!-- Loading message -->
+  <table id="cryptoTable">
+    <thead>
+      <tr>
+        <th>Pair</th>
+        <th>Total Quantity</th>
+        <th>Average Price</th>
+        <th>Live Price</th>
+        <th>Total Cost (USDT)</th>
+        <th>Current Value (USDT)</th>
+        <th>Profit/Loss (USDT)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Rows will be inserted here -->
+    </tbody>
+  </table>
+
+  <script>
+    const data = [
+      { Pair: "ADAUSDT", Total_Quantity: 683.83, Average_Price: 1.1727466666666666 },
+      { Pair: "BEAMBTC", Total_Quantity: 19.76, Average_Price: 0.0000282 },
+      { Pair: "BTCUSDT", Total_Quantity: 0.002116, Average_Price: 55791.99 },
+      { Pair: "CRVUSDT", Total_Quantity: 6.317, Average_Price: 3.166 },
+      { Pair: "DOGEUSDT", Total_Quantity: 186.4, Average_Price: 0.5974 },
+      { Pair: "DYDXUSDT", Total_Quantity: 24.2, Average_Price: 15.215 },
+      { Pair: "EOSUSDT", Total_Quantity: 45.32, Average_Price: 3.5299 },
+      { Pair: "ETHUSDT", Total_Quantity: 0.79875, Average_Price: 1515.0 },
+      { Pair: "EVXBTC", Total_Quantity: 43.0, Average_Price: 0.00002323 },
+      { Pair: "FILUSDT", Total_Quantity: 1.71, Average_Price: 25.062346783625735 },
+      { Pair: "ICXUSDT", Total_Quantity: 31.93, Average_Price: 0.9394 },
+      { Pair: "KNCUSDT", Total_Quantity: 21.662, Average_Price: 1.9850000000000003 },
+      { Pair: "LRCUSDT", Total_Quantity: 62.6, Average_Price: 0.6863878115015974 },
+      { Pair: "LSKUSDT", Total_Quantity: 19.69, Average_Price: 1.7770000000000001 },
+      { Pair: "NEOUSDT", Total_Quantity: 1.603, Average_Price: 26.822 },
+      { Pair: "OMGUSDT", Total_Quantity: 8.43, Average_Price: 5.0999 },
+      { Pair: "ONTUSDT", Total_Quantity: 35.33, Average_Price: 0.8490000000000001 },
+      { Pair: "QTUMUSDT", Total_Quantity: 8.53, Average_Price: 5.041 },
+      { Pair: "STORJUSDT", Total_Quantity: 71.04, Average_Price: 0.563 },
+      { Pair: "UNIUSDT", Total_Quantity: 1.0, Average_Price: 32.5221 },
+      { Pair: "XRPUSDT", Total_Quantity: 640.3, Average_Price: 0.5106200000000001 }
+    ];
+
+    const apiUrl = "https://api.binance.com/api/v3/ticker/price";
+
+    // Function to fetch live prices and update table
+    async function fetchLivePrices(data) {
+      const tableBody = document.querySelector("#cryptoTable tbody");
+      const summaryDiv = document.getElementById("summary");
+      const loadingDiv = document.getElementById("loading");
+      tableBody.innerHTML = ""; // Clear existing rows
+      loadingDiv.style.display = "flex"; // Show loading message
+
+      let totalProfitLoss = 0; // To calculate overall profit/loss
+
+      for (let item of data) {
+        const symbol = item.Pair;
+
+        try {
+          const response = await fetch(`${apiUrl}?symbol=${symbol}`);
+          if (!response.ok) throw new Error(`Error fetching price for ${symbol}`);
+
+          const liveData = await response.json();
+          const livePrice = parseFloat(liveData.price);
+
+          // Calculations
+          const totalCost = (item.Total_Quantity * item.Average_Price).toFixed(2);
+          const currentValue = (item.Total_Quantity * livePrice).toFixed(2);
+          const profitLoss = (currentValue - totalCost).toFixed(2);
+          totalProfitLoss += parseFloat(profitLoss);
+
+          // Add a row to the table
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${item.Pair}</td>
+            <td>${item.Total_Quantity}</td>
+            <td>${item.Average_Price.toFixed(6)}</td>
+            <td>${livePrice.toFixed(6)}</td>
+            <td>${totalCost}</td>
+            <td>${currentValue}</td>
+            <td style="color: ${profitLoss >= 0 ? 'green' : 'red'};">${profitLoss}</td>
+          `;
+          tableBody.appendChild(row);
+        } catch (error) {
+          console.error(`Error fetching data for ${symbol}:`, error);
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${item.Pair}</td>
+            <td colspan="6" style="color: red;">Error fetching data</td>
+          `;
+          tableBody.appendChild(row);
+        }
+      }
+
+      // Display total profit or loss
+      summaryDiv.innerHTML = totalProfitLoss >= 0
+        ? `<span class="profit">You are in profit: ${totalProfitLoss.toFixed(2)} USDT</span>`
+        : `<span class="loss">You are in loss: ${Math.abs(totalProfitLoss).toFixed(2)} USDT</span>`;
+
+      // Hide loading message once data is fetched
+      loadingDiv.style.display = "none";
+
+    }
+
+    // Fetch prices and update table when the page loads
+    fetchLivePrices(data);
+
+    // Log totalProfitLoss every 24 hours at midnight
+    function logProfitLossAtMidnight() {
+      const now = new Date();
+      const midnight = new Date();
+      midnight.setHours(24, 0, 0, 0); // Set to next midnight
+      const timeUntilMidnight = midnight - now;
+
+      setTimeout(function() {
+        console.log("Logging totalProfitLoss at midnight:", totalProfitLoss);
+        setInterval(() => {
+          console.log("Logging totalProfitLoss every 24 hours:", totalProfitLoss);
+        }, 24 * 60 * 60 * 1000); // Every 24 hours
+      }, timeUntilMidnight);
+    }
+
+    // Start the logging process
+    logProfitLossAtMidnight();
+  </script>
+</body>
+</html>
